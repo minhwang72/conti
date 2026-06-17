@@ -1,32 +1,5 @@
 // Client-side only: renders ABC notation via abcjs, converts to PNG base64
 
-function svgToPngBase64(svgHtml: string, width: number, height: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) { reject(new Error('Canvas not supported')); return; }
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-
-    const img = new Image();
-    // data: URL 방식 (blob: URL은 일부 환경에서 CSP로 차단됨)
-    const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgHtml);
-
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/png').split(',')[1]);
-    };
-    img.onerror = (e) => {
-      console.error('[abcToPng] img.onerror', e);
-      reject(new Error('SVG 렌더링 실패 (img.onerror)'));
-    };
-    img.src = dataUrl;
-  });
-}
-
 export async function abcToPng(abc: string): Promise<{ base64: string; mimeType: 'image/png' }> {
   const abcjsMod = await import('abcjs');
   const abcjs = abcjsMod.default;
@@ -47,14 +20,43 @@ export async function abcToPng(abc: string): Promise<{ base64: string; mimeType:
     });
 
     const svg = container.querySelector('svg');
-    if (!svg) throw new Error('악보 렌더링 실패');
+    if (!svg) throw new Error('악보 렌더링 실패 (SVG 없음)');
+
+    // XMLSerializer로 namespace 포함한 올바른 SVG 문자열 생성
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
 
     const vb = svg.viewBox.baseVal;
-    const svgW = vb.width || 800;
-    const svgH = vb.height || 400;
+    const svgW = Math.max(vb.width, 100);
+    const svgH = Math.max(vb.height, 100);
 
-    // 2× resolution for crisp output
-    const base64 = await svgToPngBase64(svg.outerHTML, svgW * 2, svgH * 2);
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = svgW * 2;
+      canvas.height = svgH * 2;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas 미지원')); return; }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const img = new Image();
+      img.width = canvas.width;
+      img.height = canvas.height;
+
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/png').split(',')[1]);
+      };
+      img.onerror = (e) => {
+        console.error('[abcToPng] img load failed', e, svgStr.slice(0, 200));
+        reject(new Error('SVG→PNG 변환 실패'));
+      };
+
+      // base64 인코딩 방식 (encodeURIComponent보다 안정적)
+      const svgBase64 = btoa(unescape(encodeURIComponent(svgStr)));
+      img.src = 'data:image/svg+xml;base64,' + svgBase64;
+    });
+
     return { base64, mimeType: 'image/png' };
   } finally {
     document.body.removeChild(container);
