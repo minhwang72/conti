@@ -12,16 +12,18 @@ function svgToPngBase64(svgHtml: string, width: number, height: number): Promise
     ctx.fillRect(0, 0, width, height);
 
     const img = new Image();
-    const blob = new Blob([svgHtml], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    // data: URL 방식 (blob: URL은 일부 환경에서 CSP로 차단됨)
+    const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgHtml);
 
     img.onload = () => {
       ctx.drawImage(img, 0, 0, width, height);
-      URL.revokeObjectURL(url);
       resolve(canvas.toDataURL('image/png').split(',')[1]);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG 렌더링 실패')); };
-    img.src = url;
+    img.onerror = (e) => {
+      console.error('[abcToPng] img.onerror', e);
+      reject(new Error('SVG 렌더링 실패 (img.onerror)'));
+    };
+    img.src = dataUrl;
   });
 }
 
