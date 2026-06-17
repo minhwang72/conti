@@ -87,8 +87,10 @@ async function extractWithClaude(base64Data: string, mimeType: string): Promise<
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[extract] POST request received');
   try {
     const session = await auth();
+    console.log('[extract] session:', session?.user?.id ?? 'no session');
     const formData = await request.formData();
     const imageFile = formData.get('image') as File | null;
 

@@ -161,12 +161,15 @@ export default function AppPage() {
           const formData = new FormData();
           formData.append('image', song.file);
 
+          console.log('[convert] fetching /api/extract for', song.fileName);
           const res = await fetch('/api/extract', {
             method: 'POST',
             body: formData,
             signal: controller.signal,
           });
+          console.log('[convert] extract response status:', res.status);
           const data = await res.json();
+          console.log('[convert] extract data:', JSON.stringify(data).slice(0, 200));
 
           if (controller.signal.aborted) return;
 
@@ -195,10 +198,13 @@ export default function AppPage() {
 
         if (controller.signal.aborted) return;
 
+        console.log('[convert] originalKey:', originalKey, '→ targetKey:', song.targetKey);
         const transposedAbc =
           originalKey === song.targetKey ? abc : transposeAbc(abc, originalKey, song.targetKey);
 
+        console.log('[convert] calling abcToPng, abc length:', transposedAbc.length);
         const { base64, mimeType } = await abcToPng(transposedAbc);
+        console.log('[convert] abcToPng success, base64 length:', base64.length);
 
         if (controller.signal.aborted) return;
 
@@ -357,7 +363,12 @@ export default function AppPage() {
             )}
             {hasErrors && (
               <Alert variant="destructive">
-                <AlertDescription>일부 곡의 변환에 실패했습니다. 키를 다시 설정하고 변환해보세요.</AlertDescription>
+                <AlertDescription>
+                  일부 곡의 변환에 실패했습니다.
+                  {songs.filter(s => s.status === 'error' && s.error).map(s => (
+                    <div key={s.id} className="mt-1 text-xs opacity-80">{s.fileName}: {s.error}</div>
+                  ))}
+                </AlertDescription>
               </Alert>
             )}
 
