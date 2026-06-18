@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { SetlistUploader } from '@/components/setlist-uploader';
@@ -50,6 +51,7 @@ function LoginGate() {
 }
 
 function UpgradeGate() {
+  const router = useRouter();
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 text-center space-y-4">
       <div className="text-3xl">⭐</div>
@@ -59,12 +61,11 @@ function UpgradeGate() {
         월 <strong>₩6,900</strong>으로 Claude AI 고품질 변환, 무제한 사용.
       </p>
       <button
-        disabled
-        className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white opacity-60 cursor-not-allowed"
+        onClick={() => router.push('/upgrade')}
+        className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
       >
-        업그레이드 준비 중
+        프리미엄 업그레이드
       </button>
-      <p className="text-xs text-muted-foreground">결제 기능은 곧 오픈 예정입니다.</p>
     </div>
   );
 }
